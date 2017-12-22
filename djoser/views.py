@@ -50,48 +50,6 @@ class RootView(views.APIView):
             return []
 
 
-class UserCreateView(generics.CreateAPIView):
-    """
-    Use this endpoint to register new user.
-    """
-    serializer_class = settings.SERIALIZERS.user_create
-    permission_classes = [permissions.AllowAny]
-
-    def perform_create(self, serializer):
-        user = serializer.save()
-        signals.user_registered.send(
-            sender=self.__class__, user=user, request=self.request
-        )
-
-        context = {'user': user}
-        to = [get_user_email(user)]
-        if settings.SEND_ACTIVATION_EMAIL:
-            settings.EMAIL.activation(self.request, context).send(to)
-        elif settings.SEND_CONFIRMATION_EMAIL:
-            settings.EMAIL.confirmation(self.request, context).send(to)
-
-
-class UserDeleteView(generics.CreateAPIView):
-    """
-    Use this endpoint to remove actually authenticated user
-    """
-    serializer_class = settings.SERIALIZERS.user_delete
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get_object(self):
-        return self.request.user
-
-    def post(self, request, *args, **kwargs):
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        utils.logout_user(self.request)
-        instance.delete()
-
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-
 class TokenCreateView(utils.ActionViewMixin, generics.GenericAPIView):
     """
     Use this endpoint to obtain user authentication token.

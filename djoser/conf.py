@@ -14,7 +14,14 @@ DJOSER_SETTINGS_NAMESPACE = 'DJOSER'
 class ObjDict(dict):
     def __getattribute__(self, item):
         try:
-            if isinstance(self[item], str):
+            is_list_of_strings = (
+                isinstance(self[item], list) and
+                all(isinstance(elem, str) for elem in self[item])
+            )
+
+            if is_list_of_strings:
+                self[item] = [import_string(func) for func in self[item]]
+            elif isinstance(self[item], str):
                 self[item] = import_string(self[item])
             value = self[item]
         except KeyError:
@@ -31,7 +38,27 @@ default_settings = {
     'PASSWORD_RESET_CONFIRM_RETYPE': False,
     'PASSWORD_RESET_SHOW_EMAIL_NOT_FOUND': False,
     'PASSWORD_VALIDATORS': [],
+    'LOGOUT_ON_PASSWORD_CHANGE': False,
+    'USER_EMAIL_FIELD_NAME': 'email',
+    'SOCIAL_AUTH_TOKEN_STRATEGY': 'djoser.social.token.jwt.TokenStrategy',
+    'SOCIAL_AUTH_ALLOWED_REDIRECT_URIS': [],
     'TOKEN_MODEL': 'rest_framework.authtoken.models.Token',
+
+    'PIPELINES': ObjDict({
+        'user_create': [
+            'djoser.pipelines.user_create.validate_request',
+            'djoser.pipelines.user_create.perform',
+            'djoser.pipelines.user_create.serialize_instance'
+            # 'djoser.pipelines.user_create.activation_email',
+            # 'djoser.pipelines.user_create.signal',
+        ],
+        'user_delete': [
+            'djoser.pipelines.user_delete.serialize_request',
+            'djoser.pipelines.user_delete.perform',
+            # 'djoser.pipelines.user_delete.activation_email',
+            # 'djoser.pipelines.user_delete.signal',
+        ],
+    }),
     'SERIALIZERS': ObjDict({
         'activation':
             'djoser.serializers.ActivationSerializer',
@@ -65,10 +92,6 @@ default_settings = {
         'confirmation': 'djoser.email.ConfirmationEmail',
         'password_reset': 'djoser.email.PasswordResetEmail',
     }),
-    'LOGOUT_ON_PASSWORD_CHANGE': False,
-    'USER_EMAIL_FIELD_NAME': 'email',
-    'SOCIAL_AUTH_TOKEN_STRATEGY': 'djoser.social.token.jwt.TokenStrategy',
-    'SOCIAL_AUTH_ALLOWED_REDIRECT_URIS': [],
 }
 
 SETTINGS_TO_IMPORT = ['TOKEN_MODEL', 'SOCIAL_AUTH_TOKEN_STRATEGY']

@@ -1,7 +1,6 @@
 from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core import exceptions as django_exceptions
-from django.db import IntegrityError, transaction
 
 from rest_framework import exceptions, serializers
 
@@ -43,9 +42,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = tuple(User.REQUIRED_FIELDS) + (
-            User.USERNAME_FIELD, User._meta.pk.name, 'password',
-        )
+        fields = [User.USERNAME_FIELD, User._meta.pk.name, 'password']
 
     def validate(self, attrs):
         user = User(**attrs)
@@ -57,22 +54,6 @@ class UserCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({'password': list(e.messages)})
 
         return attrs
-
-    def create(self, validated_data):
-        try:
-            user = self.perform_create(validated_data)
-        except IntegrityError:
-            self.fail('cannot_create_user')
-
-        return user
-
-    def perform_create(self, validated_data):
-        with transaction.atomic():
-            user = User.objects.create_user(**validated_data)
-            if settings.SEND_ACTIVATION_EMAIL:
-                user.is_active = False
-                user.save(update_fields=['is_active'])
-        return user
 
 
 class TokenCreateSerializer(serializers.Serializer):
